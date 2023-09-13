@@ -5,7 +5,6 @@ import subprocess
 
 def queue_task(task):
     """
-    Simulate queuing a task. Here, the task is the profiler app.
     Each time this function is called, a new Docker container is created
     to run the compiled profiler code.
     """
@@ -15,18 +14,36 @@ def queue_task(task):
     # 2. Set up the Docker client
     client = docker.from_env()
 
+    configurations = [
+        {"memory": "25m", "cpuset_cpus": "0"},
+        {"memory": "50m", "cpuset_cpus": "0"},
+        {"memory": "50m", "cpuset_cpus": "0,1"},
+        {"memory": "100m", "cpuset_cpus": "0,1"},
+    ]
+
     # 3. Build the Docker image
     current_dir = os.path.dirname(os.path.realpath(__file__))
-    client.images.build(path=current_dir, tag="profiler_app")
 
-    # 4. Run the Docker container
-    container = client.containers.run(
-        "profiler_app",
-        detach=True,
-        auto_remove=True
-    )
-    container.wait()
+    for config in configurations:
+        print(f"Building image for configuration: {config}")
 
+        # Re-build the image for every configuration to incorporate any changes in profiler_app
+        client.images.build(path=current_dir, tag="profiler_app")
 
-# Example: Queue a task
-queue_task('some_task')
+        print(f"Running with configuration: {config}")
+
+        # Run a container with the given configuration
+        container = client.containers.run(
+            "profiler_app",
+            detach=True,
+            auto_remove=True,  # Remove the container after it exits
+            mem_limit=config["memory"],
+            cpuset_cpus=config["cpuset_cpus"]
+        )
+
+        # Wait for the container to finish
+        result = container.wait()
+
+        output = container.logs()
+
+        return result["StatusCode"], output.decode("utf-8")
