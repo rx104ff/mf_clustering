@@ -1,10 +1,15 @@
 import queue
 import threading
 import time
+from statistics import LinearRegression
+
 import torch
 import numpy as np
 from sklearn.decomposition import PCA
 from scipy.sparse.csgraph import laplacian
+from dockernizer import *
+from sklearn.pipeline import Pipeline
+from helpers.func_builder.compiler import *
 
 
 class Estimator:
@@ -12,6 +17,7 @@ class Estimator:
         self.potential_tensor = np.array([])
         self.cluster_size = cluster_size
         self.potential_tensor_queue = queue.Queue()
+        self.lambda_func = None
 
         self.processing = threading.Event()  # An event to track if processing is ongoing
 
@@ -50,3 +56,13 @@ class Estimator:
             self.processing_tensor()
         else:
             self.processing.clear()  # Mark processing as done
+
+    def build_estimator(self, task):
+        profile = queue_task(task)
+        model = Pipeline([
+            ('tfidf', Compiler()),
+            ('regressor', LinearRegression())
+        ])
+
+        # Build the lambda function from string
+        self.lambda_func = eval(model.fit_predict(profile))

@@ -268,4 +268,3 @@ class Compiler:
 
 
 v, e = Compiler.eval_expr('', 'let twice = fun f -> fun x -> f (f x) in twice (fun x -> x * x) 2')
-print(e)

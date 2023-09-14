@@ -80,7 +80,7 @@ class Profiler:
             'binary_size': os.path.getsize(self.binary_path),
             'system_ram': psutil.virtual_memory().total,
             'system_cpu_cores': psutil.cpu_count(),
-            'system_load_avg': sum(psutil.getloadavg()) / 3,  # Average of 1, 5, and 15 minute load averages
+            'system_load_avg': sum(psutil.getloadavg()) / 3,
             'python_version': os.sys.version_info.major,  # Capturing Python major version
         }
 

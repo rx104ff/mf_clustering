@@ -22,11 +22,13 @@ class Scheduler(threading.Thread):
     def run(self, *args, **kwargs) -> None:
         self.estimator.processing_tensor()
         while not self.stop_signal.is_set():  # Keep running until stopped
+            # Assess task
             self.job(*args, **kwargs)
+
+            # Run task
             queue_task(self.task_queue.get())
 
     def job(self, *args, **kwargs) -> None:
-        # Execute the assessing_func
         self.scheduler(*args, **kwargs)
 
     def stop(self) -> None:
@@ -42,3 +44,7 @@ class Scheduler(threading.Thread):
     def receive_broadcast(self, potential) -> None:
         with self._lock:
             self.potential = potential
+
+    def update_potential(self, index):
+        with self._lock:
+            self.potential[index] = self.estimator.lambda_func(queue)
