@@ -4,6 +4,7 @@ from flask import Flask, request
 import threading
 import queue
 import time
+import numpy as np
 from services.scheduler import Scheduler
 from services.estimator import Estimator
 
@@ -51,10 +52,16 @@ def process_tasks():
 
 
 if __name__ == '__main__':
-    thread = Scheduler(interval=5)
-    thread.run()
-
     # Initial cluster size
     estimator = Estimator(sys.argv[0])
+
+    thread = Scheduler(interval=5,
+                       emitter=broadcast_cluster,
+                       estimator=estimator,
+                       potential=np.empty((sys.argv[0],
+                                           sys.argv[0])),
+                       kwargs=sys.argv,
+                       task_queue=task_queue)
+    thread.run()
 
     app.run(debug=True, port=5000)

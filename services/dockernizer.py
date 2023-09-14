@@ -1,6 +1,5 @@
 import docker
-import os
-import subprocess
+from profiler import *
 
 
 def queue_task(task):
@@ -8,42 +7,45 @@ def queue_task(task):
     Each time this function is called, a new Docker container is created
     to run the compiled profiler code.
     """
-    # 1. Compile the Python script to a binary
-    subprocess.check_call(['pyinstaller', '--onefile', 'profiler_app.py', '-n', 'compiled_profiler'])
 
-    # 2. Set up the Docker client
-    client = docker.from_env()
+    with Profiler(task) as profiler:
 
-    configurations = [
-        {"memory": "25m", "cpuset_cpus": "0"},
-        {"memory": "50m", "cpuset_cpus": "0"},
-        {"memory": "50m", "cpuset_cpus": "0,1"},
-        {"memory": "100m", "cpuset_cpus": "0,1"},
-    ]
+        # 1. Compile the Python script to a binary
+        subprocess.check_call(['pyinstaller', '--onefile', profiler.build(), '-n', 'compiled_profiler'])
 
-    # 3. Build the Docker image
-    current_dir = os.path.dirname(os.path.realpath(__file__))
+        # 2. Set up the Docker client
+        client = docker.from_env()
 
-    for config in configurations:
-        print(f"Building image for configuration: {config}")
+        configurations = [
+            {"memory": "25m", "cpuset_cpus": "0"},
+            {"memory": "50m", "cpuset_cpus": "0"},
+            {"memory": "50m", "cpuset_cpus": "0,1"},
+            {"memory": "100m", "cpuset_cpus": "0,1"},
+        ]
 
-        # Re-build the image for every configuration to incorporate any changes in profiler_app
-        client.images.build(path=current_dir, tag="profiler_app")
+        # 3. Build the Docker image
+        current_dir = os.path.dirname(os.path.realpath(__file__))
 
-        print(f"Running with configuration: {config}")
+        for config in configurations:
+            print(f"Building image for configuration: {config}")
 
-        # Run a container with the given configuration
-        container = client.containers.run(
-            "profiler_app",
-            detach=True,
-            auto_remove=True,  # Remove the container after it exits
-            mem_limit=config["memory"],
-            cpuset_cpus=config["cpuset_cpus"]
-        )
+            # Re-build the image for every configuration to incorporate any changes in profiler_app
+            client.images.build(path=current_dir, tag="profiler_app")
 
-        # Wait for the container to finish
-        result = container.wait()
+            print(f"Running with configuration: {config}")
 
-        output = container.logs()
+            # Run a container with the given configuration
+            container = client.containers.run(
+                "profiler_app",
+                detach=True,
+                auto_remove=True,  # Remove the container after it exits
+                mem_limit=config["memory"],
+                cpuset_cpus=config["cpuset_cpus"]
+            )
 
-        return result["StatusCode"], output.decode("utf-8")
+            # Wait for the container to finish
+            result = container.wait()
+
+            output = container.logs()
+
+            return result["StatusCode"], output.decode("utf-8")

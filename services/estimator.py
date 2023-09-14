@@ -1,7 +1,10 @@
 import queue
 import threading
 import time
+import torch
 import numpy as np
+from sklearn.decomposition import PCA
+from scipy.sparse.csgraph import laplacian
 
 
 class Estimator:
@@ -26,8 +29,21 @@ class Estimator:
         time.sleep(5)
 
         initial_count = self.potential_tensor_queue.qsize()  # Number of tensors at the start of processing
+
+        stacked_tensors = torch.stack([])
         for _ in range(initial_count):
             tensor = self.potential_tensor_queue.get()
+            lap = laplacian(tensor, normed=True)
+            eigenvalues, eigenvectors = np.linalg.eigh(lap)
+            # Use appropriate number of eigenvectors
+            embedded_data = eigenvectors[:, :tensor.ndim]
+
+            # PCA
+            pca = PCA(n_components=0.95)
+            reduced_data_pca = pca.fit_transform(embedded_data)
+            stacked_tensors = torch.cat([stacked_tensors, reduced_data_pca])
+
+        self.potential_tensor = torch.mean(stacked_tensors, dim=0)
 
         # If there are more tensors, start a new processing cycle
         if not self.potential_tensor_queue.empty():
